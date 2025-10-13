@@ -17,6 +17,7 @@ import math
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import numpy as np
+np.random.seed(0)
 
 
 class SimulatedAnnealing:
@@ -36,10 +37,11 @@ class SimulatedAnnealing:
         
     def objective_function(self, x):
         """
-        Example objective function to minimize
-        This is a multimodal function with multiple local minima
+        Complex multimodal function with multiple local minima
+        Features: x^4 polynomial for broad shape + oscillatory sin component
+        Has deeper valleys and more challenging local minima than previous version
         """
-        return (x - 2)**2 * (x + 3)**2 + 10 * math.sin(x) + 1
+        return x**4 - 16*x**2 + 5*x + 20*math.sin(3*x)
     
     def neighbor_function(self, x, step_size=1.0):
         """
@@ -214,7 +216,7 @@ def plot_results(history, objective_func):
     plt.show()
 
 
-def animate_simulated_annealing(history, objective_func, save_gif=False):
+def animate_simulated_annealing(history, objective_func, save_gif=False, show_plot=True):
     """
     Create an animated visualization of simulated annealing optimization
     
@@ -222,9 +224,10 @@ def animate_simulated_annealing(history, objective_func, save_gif=False):
         history: Detailed history from solve() method
         objective_func: The objective function to plot
         save_gif: Whether to save as GIF file
+        show_plot: Whether to display the animation (default: True)
     """
     # Set up the figure and subplots
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12))
     
     # Define the range for plotting
     x_range = np.linspace(-5, 5, 1000)
@@ -239,14 +242,19 @@ def animate_simulated_annealing(history, objective_func, save_gif=False):
     ax1.legend()
     
     # Initialize empty line for energy history
-    energy_line, = ax2.plot([], [], 'b-', alpha=0.7, label='Energy')
-    temp_line, = ax2.plot([], [], 'r-', alpha=0.7, label='Temperature')
+    energy_line, = ax2.plot([], [], 'b-', alpha=0.7, linewidth=2)
     ax2.set_xlabel('Iteration')
-    ax2.set_ylabel('Value')
-    ax2.set_title('Energy and Temperature over Time')
-    ax2.legend()
+    ax2.set_ylabel('Energy')
+    ax2.set_title('Energy over Time')
     ax2.grid(True, alpha=0.3)
-    ax2.set_yscale('log')
+    
+    # Initialize empty line for temperature history
+    temp_line, = ax3.plot([], [], 'r-', alpha=0.7, linewidth=2)
+    ax3.set_xlabel('Iteration')
+    ax3.set_ylabel('Temperature')
+    ax3.set_title('Temperature over Time')
+    ax3.grid(True, alpha=0.3)
+    ax3.set_yscale('log')
     
     # Initialize scatter points for current and best solutions
     current_point = ax1.scatter([], [], c='red', s=100, marker='o', 
@@ -287,10 +295,16 @@ def animate_simulated_annealing(history, objective_func, save_gif=False):
         
         # Auto-scale the plots
         if len(iterations) > 1:
-            ax2.set_xlim(min(iterations), max(iterations))
-            if min(energies) > 0:
-                ax2.set_ylim(min(min(energies), min(temperatures)), 
-                           max(max(energies), max(temperatures)))
+            min_iter, max_iter = min(iterations), max(iterations)
+            if min_iter != max_iter:
+                ax2.set_xlim(min_iter, max_iter)
+                ax3.set_xlim(min_iter, max_iter)
+            
+            # Auto-scale energy plot
+            ax2.set_ylim(min(energies), max(energies))
+            
+            # Auto-scale temperature plot (log scale handles itself)
+            ax3.set_ylim(min(temperatures), max(temperatures))
         
         # Update information text
         status = "ACCEPTED" if h['accepted'] else "REJECTED"
@@ -316,7 +330,11 @@ def animate_simulated_annealing(history, objective_func, save_gif=False):
         print("Animation saved as 'simulated_annealing_animation.gif'")
     
     plt.tight_layout()
-    plt.show()
+    
+    if show_plot:
+        plt.show()
+    else:
+        plt.close(fig)
     
     return anim
 
@@ -328,45 +346,19 @@ def main():
     print("=== Simulated Annealing Demo ===\n")
     
     # Create optimizer instance
-    sa = SimulatedAnnealing(initial_temp=100, cooling_rate=0.95, min_temp=0.1)
+    sa = SimulatedAnnealing(initial_temp=200, cooling_rate=0.98, min_temp=0.1)
     
     # Run optimization with detailed history for animation
-    best_solution, history = sa.solve(initial_solution=0.0, max_iterations=100)
+    best_solution, history = sa.solve(initial_solution=0.0, max_iterations=300)
     
     # Show static plots first
     plot_results(history, sa.objective_function)
     
     # Show animated version
     print("\nStarting animation...")
-    animate_simulated_annealing(history, sa.objective_function, save_gif=False)
-    
-    # Demonstrate different cooling rates
-    print("\n=== Comparing Different Cooling Rates ===")
-    cooling_rates = [0.90, 0.95, 0.98, 0.99]
-    
-    for rate in cooling_rates:
-        sa_test = SimulatedAnnealing(initial_temp=100, cooling_rate=rate, min_temp=0.1)
-        solution, _ = sa_test.solve(initial_solution=0.0, max_iterations=100, save_history=False)
-        energy = sa_test.objective_function(solution)
-        print(f"Cooling rate {rate}: Solution = {solution:.4f}, Energy = {energy:.4f}")
-
-
-def animation_demo():
-    """
-    Demo specifically for animation with longer run
-    """
-    print("=== Simulated Annealing Animation Demo ===\n")
-    
-    # Create optimizer instance
-    sa = SimulatedAnnealing(initial_temp=100, cooling_rate=0.95, min_temp=0.1)
-    
-    # Run optimization with detailed history for animation
-    best_solution, history = sa.solve(initial_solution=0.0, max_iterations=200)
-    
-    # Show animated version and save as GIF
-    print("Creating animation...")
-    animate_simulated_annealing(history, sa.objective_function, save_gif=True)
+    animate_simulated_annealing(history, sa.objective_function, show_plot=False, save_gif=True)
 
 
 if __name__ == "__main__":
     main()
+    # animation_demo()
